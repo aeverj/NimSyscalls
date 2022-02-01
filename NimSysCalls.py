@@ -71,6 +71,7 @@ when isMainModule:
     pop rdx
     pop rcx
     mov r10,rcx
+    movzx rax,al
     syscall
     ret
     """

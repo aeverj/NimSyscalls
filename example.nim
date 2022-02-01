@@ -134,6 +134,7 @@ proc mNtCreateFile(FileHandle:PHANDLE,DesiredAccess:ACCESS_MASK,ObjectAttributes
     pop rdx
     pop rcx
     mov r10,rcx
+    movzx rax,al
     syscall
     ret
     """
