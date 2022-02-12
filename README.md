@@ -1,6 +1,8 @@
 # NimSysCalls
 从挂起进程内存中获取干净的ntdll副本，使用syscall绕过AV/EDR
 
+
+简体中文说明 | [English README](https://github.com/aeverj/NimSyscalls/blob/master/README_EN.md)
 # 介绍
 1. 创建一个挂起的进程
 2. 获取ntdll的基址

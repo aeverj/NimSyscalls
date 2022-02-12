@@ -1,6 +1,8 @@
 # NimSysCalls
 This nim application get a clean copy of ntdll from a new process in a suspended state.We can use it to execute shellcode by direct system calls.
 
+
+English README | [简体中文说明](https://github.com/aeverj/NimSyscalls/blob/master/README.md)
 # Introduction
 1. Create a new process in a suspended state
 2. Get the ntdll base address
