@@ -3,6 +3,10 @@
 
 
 简体中文说明 | [English README](https://github.com/aeverj/NimSyscalls/blob/master/README_EN.md)
+
+# 更新
+* 20220315：获取ntdll中syscall地址，然后调用。能够绕过对syscall指令执行的位置的检查
+
 # 介绍
 1. 创建一个挂起的进程
 2. 获取ntdll的基址

@@ -1,4 +1,5 @@
 {.passC:"-masm=intel".}
+{.passL:"-static"}
 import winim/lean
 import system/memory
 import tables
@@ -15,8 +16,10 @@ var
     lpSize: SIZE_T
 
 
-var hash:uint32 = 0x95fff7b9'u32
+var hash:uint32 = 0x33dfbf02'u32
 var HashNumMap = initTable[uint32, uint8]()
+var AsmSyscall:int64
+var NtdllBase:int64
 
 proc HashSyscallFuncName(bt: cstring):uint32 =
     var currhash = hash
@@ -51,6 +54,7 @@ proc SaveSysCallsStub() =
         let LdrEntry = cast[PLDR_DATA_TABLE_ENTRY](ptrInitList)
         let tmpntdll:PWSTR = "ntdll.dll"
         if nimCmpMem(tmpntdll,cast[ptr UNICODE_STRING](LdrEntry.Reserved4.addr).Buffer,18)  == 0:
+            NtdllBase = cast[int64](LdrEntry.DllBase)
             let sizeofimg = cast[array[2,int64]](LdrEntry.Reserved3)
             dllbase = alloc0(sizeofimg[1])
             si.StartupInfo.cb = sizeof(si).cint
@@ -110,6 +114,13 @@ proc SaveSysCallsStub() =
             uiNameArray = uiNameArray + sizeof(DWORD)
             uiNameOrdinals += sizeof(WORD)
             continue
+        if AsmSyscall == 0:
+          var currentaddr = NtdllBase + dllfunc - cast[int64](dllbase)
+          while true:
+            currentaddr += 1
+            if cast[ptr int16](currentaddr)[] == 0x050f:
+              AsmSyscall = currentaddr
+              break
         HashNumMap[HashSyscallFuncName(cast[cstring](dllname))] = cast[uint8](cast[ptr byte](dllfunc + 4)[])
         uiNameArray = uiNameArray + sizeof(DWORD)
         uiNameOrdinals += sizeof(WORD)
@@ -119,6 +130,8 @@ proc getCode(hash:uint32):uint8 =
     echo "[*] Syscall code: " & code.repr
     return code
 
+proc getAsmSyscall():int64 =
+    return AsmSyscall
 proc mNtCreateFile(FileHandle:PHANDLE,DesiredAccess:ACCESS_MASK,ObjectAttributes:POBJECT_ATTRIBUTES,IoStatusBlock:PIO_STATUS_BLOCK,AllocationSize:PLARGE_INTEGER,FileAttributes:ULONG,ShareAccess:ULONG,CreateDisposition:ULONG,CreateOptions:ULONG,EaBuffer:PVOID,EaLength:ULONG): NTSTATUS {.asmNoStackFrame.} =
     asm """
     push rcx
@@ -126,7 +139,7 @@ proc mNtCreateFile(FileHandle:PHANDLE,DesiredAccess:ACCESS_MASK,ObjectAttributes
     push r8
     push r9
     sub rsp, 0x28
-    mov rcx, 0x73ba436f
+    mov rcx, 0xd442fad6
     call `getCode`
     add rsp, 0x28
     pop r9
@@ -135,10 +148,14 @@ proc mNtCreateFile(FileHandle:PHANDLE,DesiredAccess:ACCESS_MASK,ObjectAttributes
     pop rcx
     mov r10,rcx
     movzx rax,al
-    syscall
+    push rax
+    call `getAsmSyscall`
+    mov r11, rax
+    pop rax
+    jmp r11
     ret
     """
-
+                    
 
 when isMainModule:
     SaveSysCallsStub()
@@ -156,4 +173,4 @@ when isMainModule:
     var a = mNtCreateFile(&fileHandle, FILE_GENERIC_WRITE, &oa, &osb, &lb, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_WRITE, FILE_OVERWRITE_IF, FILE_SYNCHRONOUS_IO_NONALERT, NULL,0)
     echo "[*] NtCreateFile return: " & a.repr
     if a == 0:
-      echo "[*] Create file C:\\Users\\pw.log success"
+      echo "[*] Create file C:\\Users\\pw.log success"                    

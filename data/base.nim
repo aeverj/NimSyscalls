@@ -18,6 +18,8 @@ var
 
 var hash:uint32 = HASH_CODE
 var HashNumMap = initTable[uint32, uint8]()
+var AsmSyscall:int64
+var NtdllBase:int64
 
 proc HashSyscallFuncName(bt: cstring):uint32 =
     var currhash = hash
@@ -52,6 +54,7 @@ proc SaveSysCallsStub() =
         let LdrEntry = cast[PLDR_DATA_TABLE_ENTRY](ptrInitList)
         let tmpntdll:PWSTR = "ntdll.dll"
         if nimCmpMem(tmpntdll,cast[ptr UNICODE_STRING](LdrEntry.Reserved4.addr).Buffer,18)  == 0:
+            NtdllBase = cast[int64](LdrEntry.DllBase)
             let sizeofimg = cast[array[2,int64]](LdrEntry.Reserved3)
             dllbase = alloc0(sizeofimg[1])
             si.StartupInfo.cb = sizeof(si).cint
@@ -111,6 +114,13 @@ proc SaveSysCallsStub() =
             uiNameArray = uiNameArray + sizeof(DWORD)
             uiNameOrdinals += sizeof(WORD)
             continue
+        if AsmSyscall == 0:
+          var currentaddr = NtdllBase + dllfunc - cast[int64](dllbase)
+          while true:
+            currentaddr += 1
+            if cast[ptr int16](currentaddr)[] == 0x050f:
+              AsmSyscall = currentaddr
+              break
         HashNumMap[HashSyscallFuncName(cast[cstring](dllname))] = cast[uint8](cast[ptr byte](dllfunc + 4)[])
         uiNameArray = uiNameArray + sizeof(DWORD)
         uiNameOrdinals += sizeof(WORD)
@@ -119,3 +129,6 @@ proc getCode(hash:uint32):uint8 =
     let code = HashNumMap[hash]
     echo "[*] Syscall code: " & code.repr
     return code
+
+proc getAsmSyscall():int64 =
+    return AsmSyscall

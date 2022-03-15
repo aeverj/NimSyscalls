@@ -72,7 +72,11 @@ when isMainModule:
     pop rcx
     mov r10,rcx
     movzx rax,al
-    syscall
+    push rax
+    call `getAsmSyscall`
+    mov r11, rax
+    pop rax
+    jmp r11
     ret
     """
                     '''
